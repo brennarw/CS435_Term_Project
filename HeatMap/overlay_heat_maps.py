@@ -5,6 +5,7 @@ from rasterio.transform import from_bounds
 from pyproj import Proj, Transformer
 import matplotlib.pyplot as plt
 import os
+import sys
 
 def create_airport_tiff(csv_path, output_path):
     """
@@ -112,7 +113,50 @@ def overlay_three_tiffs(tiff_file_one, tiff_file_two, airport_tiff, output_file_
         plt.colorbar(scatter1, label="Spring Data", fraction=0.046, pad=0.04)
 
         # Layer 3: Airports as bright points
-        scatter2 = plt.scatter(airport_x, airport_y, color='yellow', s=20, alpha=1, marker="*")
+        scatter2 = plt.scatter(airport_x, airport_y, color='blue', s=20, alpha=1, marker="*")
+
+        plt.title("Combined Visualization with Airport Locations")
+
+        # Save the combined visualization
+        plt.savefig(output_file_path, format="png", dpi=300, bbox_inches="tight")
+        plt.close()
+        
+def overlay_two_tiffs(tiff_file_one, airport_tiff, output_file_path):
+    """
+    Overlay three TIFF files: two existing files and the airport data
+    """
+    # Read all three TIFF files
+    with rasterio.open(tiff_file_one) as src1, \
+         rasterio.open(airport_tiff) as src3:
+
+        data1 = src1.read(1)
+        data3 = src3.read(1)
+
+        # Handle NaN values
+        data1 = np.nan_to_num(data1, nan=0)
+        data3 = np.nan_to_num(data3, nan=0)
+
+        # Normalize each dataset
+        def normalize(data):
+            data_min, data_max = np.min(data), np.max(data)
+            if data_max - data_min != 0:
+                return (data - data_min) / (data_max - data_min)
+            return data
+
+        norm_data1 = normalize(data1)
+
+        # Get coordinates for airport points
+        airport_y, airport_x = np.nonzero(data3)
+
+        # Create visualization
+        plt.figure(figsize=(15, 10))
+
+        # Layer 1: First TIFF as background heatmap
+        plt.imshow(norm_data1, cmap="hot", interpolation="nearest", alpha=0.5)
+        plt.colorbar(label="Fall Data", fraction=0.046, pad=0.04)
+
+        # Layer 3: Airports as bright points
+        scatter2 = plt.scatter(airport_x, airport_y, color='blue', s=20, alpha=1, marker="*")
 
         plt.title("Combined Visualization with Airport Locations")
 
@@ -120,22 +164,28 @@ def overlay_three_tiffs(tiff_file_one, tiff_file_two, airport_tiff, output_file_
         plt.savefig(output_file_path, format="png", dpi=300, bbox_inches="tight")
         plt.close()
 
-def main():
+def main(option: str):
     # Hardcoded file paths
-    csv_file = "/Users/aaronmasih/CS435_Term_Project/Data/us-airports.csv"
-    tiff_file_1 = "/Users/aaronmasih/CS435_Term_Project/Data/fall_stopover_2500_v9_265_class.tif"
-    tiff_file_2 = "/Users/aaronmasih/CS435_Term_Project/Data/spring_stopover_2500_v9_265_class.tif"
-    output_image = "/Users/aaronmasih/CS435_Term_Project/Data/combined_visualization.png"
-    airport_tiff = "/Users/aaronmasih/CS435_Term_Project/Data/airports_temp.tif"
+    csv_file = "../Data/us-airports.csv"
+    tiff_file_fall = "../Data/fall_stopover_2500_v9_265_class.tif"
+    tiff_file_spring = "../Data/spring_stopover_2500_v9_265_class.tif"
+    output_image = f"./heat_maps/{option}_visualization_with_airports.png"
+    airport_tiff = "../Data/airports_temp.tif"
 
     # Create airport TIFF
     create_airport_tiff(csv_file, airport_tiff)
+    
+    if option == "--Fall":
+        overlay_two_tiffs(tiff_file_fall, airport_tiff, output_image)
+    elif option == "--Spring":
+        overlay_two_tiffs(tiff_file_spring, airport_tiff, output_image)
+    elif option == "--Overlay":
+        overlay_three_tiffs(tiff_file_fall, tiff_file_spring, airport_tiff, output_image)
 
-    # Combine and visualize all three layers
-    overlay_three_tiffs(tiff_file_1, tiff_file_2, airport_tiff, output_image)
-
-    print(f"Combined visualization saved to {output_image}")
+    print(f"Heatmap saved to {output_image}")
 
 
 if __name__ == "__main__":
-    main()
+    # To run the program: python overlay_heat_maps.py [--option]
+    option = sys.argv[1]
+    main(option)
