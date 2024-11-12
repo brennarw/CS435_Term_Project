@@ -110,6 +110,8 @@ def overlay_tiff_heatmaps(tiff_file_one, tiff_file_two, output_file_path):
 
 if __name__ == "__main__":
     
+    # To run program: python TiffToHeat.py --[option] [tiff file arguments]
+    
     if len(sys.argv) < 4:
         print("USAGE: incorrect number of arguments: need a tiff input path (1)")
         sys.exit(0)
