@@ -152,6 +152,7 @@ public final class FlightDataProcessing {
         String sunsetOutputDir = "/435_TP/sunsetFlights";
         String flightFrequenciesOutputDir = "/435_TP/flightFrequencies";
         String topNOutputDir = "/435_TP/topNAirports";
+        String bottomNOutputDir = "/435_TP/bottomNAirports";
         sunsetRDD.map(tuple -> tuple._1 + ": " + tuple._2).coalesce(1).saveAsTextFile(sunsetOutputDir);
 
         // Get flight frequencies & save to file
@@ -169,7 +170,16 @@ public final class FlightDataProcessing {
         JavaPairRDD<String, Integer> topNAirportsRDD = sc.parallelizePairs(
             topNAirportsSwapped.stream().map(tuple -> new Tuple2<>(tuple._2, tuple._1)).collect(Collectors.toList())
         );
+        // Gather bottom N airports by number of flights
+        List<Tuple2<Integer, String>> bottomNAirportsSwapped = flightFreqenciesRDD
+                                                                .mapToPair(tuple -> new Tuple2<>(tuple._2, tuple._1))
+                                                                .sortByKey(true)
+                                                                .take(n);
+        JavaPairRDD<String, Integer> bottomNAirportsRDD = sc.parallelizePairs(
+            bottomNAirportsSwapped.stream().map(tuple -> new Tuple2<>(tuple._2, tuple._1)).collect(Collectors.toList())
+        );
         topNAirportsRDD.coalesce(1).saveAsTextFile(topNOutputDir);
+        bottomNAirportsRDD.coalesce(1).saveAsTextFile(bottomNOutputDir);
     }
 
     
