@@ -21,9 +21,10 @@ def create_airport_tiff(csv_path, output_path):
     data = data.dropna(subset=["longitude_deg", "latitude_deg"])
 
     # Filter for U.S. medium and large airports
-    us_data = data[
-        (data["type"].isin(['medium_airport', 'large_airport']))
-    ]
+    # us_data = data[
+    #     (data["type"].isin(['medium_airport', 'large_airport']))
+    # ]
+    us_data = data
 
     # Set up projections
     wgs84 = Proj("EPSG:4326")  # WGS84 (lat/lon)
@@ -123,7 +124,7 @@ def overlay_three_tiffs(tiff_file_one, tiff_file_two, airport_tiff, output_file_
         
 def overlay_two_tiffs(tiff_file_one, airport_tiff, output_file_path):
     """
-    Overlay three TIFF files: two existing files and the airport data
+    Overlay two TIFF files: two existing files and the airport data
     """
     # Read all three TIFF files
     with rasterio.open(tiff_file_one) as src1, \
@@ -155,10 +156,13 @@ def overlay_two_tiffs(tiff_file_one, airport_tiff, output_file_path):
         plt.imshow(norm_data1, cmap="hot", interpolation="nearest", alpha=0.5)
         plt.colorbar(label="Fall Data", fraction=0.046, pad=0.04)
 
-        # Layer 3: Airports as bright points
-        scatter2 = plt.scatter(airport_x, airport_y, color='blue', s=20, alpha=1, marker="*")
+        # Layer 3: Add a faded halo around the airport points
+        # plt.scatter(airport_x, airport_y, color='blue', s=20, alpha=0.2, marker="o")
 
-        plt.title("Combined Visualization with Airport Locations")
+        # Layer 4: Airports as bright points
+        plt.scatter(airport_x, airport_y, color='blue', s=20, alpha=0.5, marker="o")
+
+        plt.title("Combined Visualization with Top 50 Airport Locations")
 
         # Save the combined visualization
         plt.savefig(output_file_path, format="png", dpi=300, bbox_inches="tight")
@@ -166,11 +170,13 @@ def overlay_two_tiffs(tiff_file_one, airport_tiff, output_file_path):
 
 def main(option: str):
     # Hardcoded file paths
-    csv_file = "../Data/us-airports.csv"
+    # csv_file = "../Data/us-airports.csv"
+    csv_file = "../Data/bird_strikes/sunset_bird_strike_count_per_airport.csv"
     tiff_file_fall = "../Data/fall_stopover_2500_v9_265_class.tif"
     tiff_file_spring = "../Data/spring_stopover_2500_v9_265_class.tif"
-    output_image = f"./heat_maps/{option}_visualization_with_airports.png"
-    airport_tiff = "../Data/airports_temp.tif"
+    # output_image = f"./heat_maps/{option}_visualization_with_airports.png"
+    output_image = "./heat_maps/sunset_birdstrike_visualization.png"
+    airport_tiff = "../Data/birdStrike_temp.tif"
 
     # Create airport TIFF
     create_airport_tiff(csv_file, airport_tiff)
