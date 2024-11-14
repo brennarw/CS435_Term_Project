@@ -317,8 +317,9 @@ public final class FlightDataProcessing {
                 .getOrCreate();
 
         //NOTE: have to uncomment whichever processor you want to use!!
+        
         // processFlightData(spark, args[0], args[1]);
-        processBirdStrikeData(spark, args[0], args[1], args[2]); //ARGUMENTS: <bird_strike_data> <sunset_output> <fall_output>
+        // processBirdStrikeData(spark, args[0], args[1], args[2]); //ARGUMENTS: <bird_strike_data> <sunset_output> <fall_output>
         spark.stop();
     }
 }
