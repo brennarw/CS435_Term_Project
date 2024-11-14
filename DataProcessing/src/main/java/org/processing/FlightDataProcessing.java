@@ -23,6 +23,7 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.SparkSession;
 
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -153,13 +154,20 @@ public final class FlightDataProcessing {
         String flightFrequenciesOutputDir = "/435_TP/flightFrequencies";
         String topNOutputDir = "/435_TP/topNAirports";
         sunsetRDD.map(tuple -> tuple._1 + ": " + tuple._2).coalesce(1).saveAsTextFile(sunsetOutputDir);
+        
+        String headerString = "airportId,latitude_deg,longitude_deg,flightCount";
+        String[] columns = headerString.split(",");
+        JavaRDD<String> headerRDD = sc.parallelize(Arrays.asList(columns));
 
         // Get flight frequencies & save to file
         JavaPairRDD<String, Integer> flightFreqenciesRDD = sunsetRDD
-                                                        .mapToPair(tuple -> new Tuple2<>(tuple._1, 1))
+                                                        .mapToPair(tuple -> {
+                                                            String[] airportVal = tuple._2._2.split(",", -1);
+                                                            return new Tuple2<>(tuple._1 + "," + airportVal[4] + "," + airportVal[5], 1);
+                                                        })
                                                         .reduceByKey((x, y) -> x + y)
                                                         .coalesce(1);
-        flightFreqenciesRDD.saveAsTextFile(flightFrequenciesOutputDir);
+        headerRDD.union(flightFreqenciesRDD.map(tuple -> tuple._1 + "," + tuple._2)).saveAsTextFile(flightFrequenciesOutputDir);
         // Gather top N airports by number of flights
         int n = 10;
         List<Tuple2<Integer, String>> topNAirportsSwapped = flightFreqenciesRDD
@@ -167,9 +175,12 @@ public final class FlightDataProcessing {
                                                                 .sortByKey(false)
                                                                 .take(n);
         JavaPairRDD<String, Integer> topNAirportsRDD = sc.parallelizePairs(
-            topNAirportsSwapped.stream().map(tuple -> new Tuple2<>(tuple._2, tuple._1)).collect(Collectors.toList())
-        );
-        topNAirportsRDD.coalesce(1).saveAsTextFile(topNOutputDir);
+            topNAirportsSwapped.stream()
+            .map(tuple -> new Tuple2<>(tuple._2, tuple._1)).collect(Collectors.toList())
+            );
+        
+        
+        headerRDD.union(topNAirportsRDD.map(tuple -> tuple._1 + "," + tuple._2)).coalesce(1).saveAsTextFile(topNOutputDir);
     }
 
     
