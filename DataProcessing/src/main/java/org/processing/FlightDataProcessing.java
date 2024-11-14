@@ -153,6 +153,7 @@ public final class FlightDataProcessing {
         String sunsetOutputDir = "/435_TP/sunsetFlights";
         String flightFrequenciesOutputDir = "/435_TP/flightFrequencies";
         String topNOutputDir = "/435_TP/topNAirports";
+        String bottomNOutputDir = "/435_TP/bottomNAirports";
         sunsetRDD.map(tuple -> tuple._1 + ": " + tuple._2).coalesce(1).saveAsTextFile(sunsetOutputDir);
         
         String headerString = "airportId,latitude_deg,longitude_deg,flightCount";
@@ -175,12 +176,27 @@ public final class FlightDataProcessing {
                                                                 .sortByKey(false)
                                                                 .take(n);
         JavaPairRDD<String, Integer> topNAirportsRDD = sc.parallelizePairs(
+<<<<<<< HEAD
             topNAirportsSwapped.stream()
             .map(tuple -> new Tuple2<>(tuple._2, tuple._1)).collect(Collectors.toList())
             );
         
         
         headerRDD.union(topNAirportsRDD.map(tuple -> tuple._1 + "," + tuple._2)).coalesce(1).saveAsTextFile(topNOutputDir);
+=======
+            topNAirportsSwapped.stream().map(tuple -> new Tuple2<>(tuple._2, tuple._1)).collect(Collectors.toList())
+        );
+        // Gather bottom N airports by number of flights
+        List<Tuple2<Integer, String>> bottomNAirportsSwapped = flightFreqenciesRDD
+                                                                .mapToPair(tuple -> new Tuple2<>(tuple._2, tuple._1))
+                                                                .sortByKey(true)
+                                                                .take(n);
+        JavaPairRDD<String, Integer> bottomNAirportsRDD = sc.parallelizePairs(
+            bottomNAirportsSwapped.stream().map(tuple -> new Tuple2<>(tuple._2, tuple._1)).collect(Collectors.toList())
+        );
+        topNAirportsRDD.coalesce(1).saveAsTextFile(topNOutputDir);
+        bottomNAirportsRDD.coalesce(1).saveAsTextFile(bottomNOutputDir);
+>>>>>>> bf4dd2fdb5132f2a64646184ccbe74d24a471eb5
     }
 
     
