@@ -176,14 +176,12 @@ public final class FlightDataProcessing {
                                                                 .sortByKey(false)
                                                                 .take(n);
         JavaPairRDD<String, Integer> topNAirportsRDD = sc.parallelizePairs(
-<<<<<<< HEAD
             topNAirportsSwapped.stream()
             .map(tuple -> new Tuple2<>(tuple._2, tuple._1)).collect(Collectors.toList())
             );
         
         
         headerRDD.union(topNAirportsRDD.map(tuple -> tuple._1 + "," + tuple._2)).coalesce(1).saveAsTextFile(topNOutputDir);
-=======
             topNAirportsSwapped.stream().map(tuple -> new Tuple2<>(tuple._2, tuple._1)).collect(Collectors.toList())
         );
         // Gather bottom N airports by number of flights
@@ -196,7 +194,6 @@ public final class FlightDataProcessing {
         );
         topNAirportsRDD.coalesce(1).saveAsTextFile(topNOutputDir);
         bottomNAirportsRDD.coalesce(1).saveAsTextFile(bottomNOutputDir);
->>>>>>> bf4dd2fdb5132f2a64646184ccbe74d24a471eb5
     }
 
     
