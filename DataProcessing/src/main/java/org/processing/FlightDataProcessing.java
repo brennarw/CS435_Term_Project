@@ -207,11 +207,11 @@ public final class FlightDataProcessing {
             String[] attributes = strike.split(",", -1);
             int year = Integer.parseInt(attributes[3]);
             int month = Integer.parseInt(attributes[2]);
-            return (year >= 2018 && year <= 2020) && (month >= 8 && month <= 11);
+            // return (year >= 2018 && year <= 2020) && (month >= 8 && month <= 11);
+            return (year == 2020) && (month >= 8 && month <= 11);
         }).filter(tuple -> {
             String[] attributes = tuple.split(",", -1);
             if(attributes[4].replace("\"", "").trim().isEmpty() || attributes[8].replace("\"", "").trim().isEmpty() || attributes[9].replace("\"", "").trim().isEmpty()){
-                System.out.println("BEANS1: lat: " + attributes[8] + " lon: " + attributes[9]);
                 return false;
             } else {
                 try{
@@ -291,7 +291,7 @@ public final class FlightDataProcessing {
         JavaRDD<String> strikeSunsetCountResultRDD = reduceHeaderRDD.union(strikeCountRDD);
         JavaRDD<String> strikeFallCountResultRDD = reduceHeaderRDD.union(fallStrikeCountRDD);
         strikeSunsetCountResultRDD.coalesce(1).saveAsTextFile(sunsetOutputPath);
-        strikeFallCountResultRDD.coalesce(1).saveAsTextFile(fallOutputPath);
+        // strikeFallCountResultRDD.coalesce(1).saveAsTextFile(fallOutputPath);
         sc.close();
     }
 
@@ -319,7 +319,13 @@ public final class FlightDataProcessing {
         //NOTE: have to uncomment whichever processor you want to use!!
         
         // processFlightData(spark, args[0], args[1]);
-        // processBirdStrikeData(spark, args[0], args[1], args[2]); //ARGUMENTS: <bird_strike_data> <sunset_output> <fall_output>
+        processBirdStrikeData(spark, args[0], args[1], args[2]); //ARGUMENTS: <bird_strike_data> <sunset_output> <fall_output>
+        /*
+            in brenna's cluster: 
+
+            spark-submit --class org.processing.FlightDataProcessing --master spark://bogota.cs.colostate.edu:30282 --jars target/FlightData
+Processing-1.0-SNAPSHOT.jar sunrise-jar/SunriseSunsetCalculator-1.3-SNAPSHOT.jar /435_TP/bird_strike_data /435_TP/2018_sunset_output
+            */
         spark.stop();
     }
 }
