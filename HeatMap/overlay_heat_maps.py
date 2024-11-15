@@ -21,9 +21,10 @@ def create_airport_tiff(csv_path, output_path):
     data = data.dropna(subset=["longitude_deg", "latitude_deg"])
 
     # Filter for U.S. medium and large airports
-    us_data = data[
-        (data["type"].isin(['medium_airport', 'large_airport']))
-    ]
+    us_data = data
+    # data[
+    #     (data["type"].isin(['medium_airport', 'large_airport']))
+    # ]
 
     # Set up projections
     wgs84 = Proj("EPSG:4326")  # WGS84 (lat/lon)
@@ -166,10 +167,11 @@ def overlay_two_tiffs(tiff_file_one, airport_tiff, output_file_path):
 
 def main(option: str):
     # Hardcoded file paths
-    csv_file = "../Data/us-airports.csv"
+    heat_map_name = "2020_Fall_sunset_bird_strikes_map"
+    csv_file = "../Data/bird_strikes/2020/bird_strike_per_airport.csv"
     tiff_file_fall = "../Data/fall_stopover_2500_v9_265_class.tif"
     tiff_file_spring = "../Data/spring_stopover_2500_v9_265_class.tif"
-    output_image = f"./heat_maps/{option}_visualization_with_airports.png"
+    output_image = f"./heat_maps/{heat_map_name}.png"
     airport_tiff = "../Data/airports_temp.tif"
 
     # Create airport TIFF
