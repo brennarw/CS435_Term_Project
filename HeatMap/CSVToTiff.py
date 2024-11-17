@@ -4,6 +4,9 @@ import pandas as pd
 import sys
 import rasterio
 from rasterio.transform import from_origin
+from shapely.geometry import Point
+import geopandas as gpd
+import matplotlib.pyplot as plt
 
 def csv_to_tiff(csv_path, output_path, data_type='float32'):
     """
@@ -19,17 +22,16 @@ def csv_to_tiff(csv_path, output_path, data_type='float32'):
     """
     # Read CSV file
     data = pd.read_csv(csv_path)
-    
+    print(data.head())
      # Filter for U.S. longitude and latitude ranges
     us_data = data[
         (data["longitude_deg"] >= -125) & (data["longitude_deg"] <= -66) &
-        (data["latitude_deg"] >= 24) & (data["latitude_deg"] <= 50) &
-        (data["type"] != "closed")
+        (data["latitude_deg"] >= 24) & (data["latitude_deg"] <= 50)
     ] # comment this out if you want a tiff file that includes the entire world, not just the US
     
     longitude_values = us_data["longitude_deg"].values
     latitude_values = us_data["latitude_deg"].values
-    point_data = us_data["id"] # just holds the airport id
+    point_data = us_data["flightCount"] # just holds the airport id
     
     # create a grid extent
     min_lon, max_lon = longitude_values.min(), longitude_values.max()
@@ -62,7 +64,8 @@ def csv_to_tiff(csv_path, output_path, data_type='float32'):
         crs='EPSG:4326',  
         transform=transform
     ) as dst:
-        dst.write(raster, 1)
+        dst.write(raster, 1)        
+    
 
 if __name__ == "__main__":
     
@@ -71,4 +74,5 @@ if __name__ == "__main__":
         sys.exit(0)
     csv_path = sys.argv[1]
     tiff_output_path = sys.argv[2]
+    # heatmap_output_path = sys.argv[3]
     csv_to_tiff(csv_path, tiff_output_path)

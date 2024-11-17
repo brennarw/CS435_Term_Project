@@ -47,7 +47,7 @@ def tiff_to_scatter_heatmap(tiff_file_path, output_file_path):
     
     # Plot heatmap
     plt.figure(figsize=(20, 10))
-    scatter = plt.scatter(x, y, color='#39FF14', s=0.5, marker="o")
+    scatter = plt.scatter(x, y, color='blue', s=0.5, marker="o")
     plt.colorbar(scatter, label="Intensity")
     plt.title("Scatter Heatmap from TIFF Data")
     plt.gca().invert_yaxis() 
