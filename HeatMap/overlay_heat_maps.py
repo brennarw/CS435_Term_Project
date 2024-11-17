@@ -225,20 +225,21 @@ def addLegend(airports_with_coords, output_file_path):
     
 def main(option: str):
     # Hardcoded file paths
-
-    heat_map_name = "2020_Fall_sunset_bird_strikes_map"
-    csv_file = "../Data/bird_strikes/2020/bird_strike_per_airport.csv"
+# Hardcoded file paths
+    # csv_file = "../Data/us-airports.csv"
+    csv_file = "../Data/top50.csv"
     tiff_file_fall = "../Data/fall_stopover_2500_v9_265_class.tif"
     tiff_file_spring = "../Data/spring_stopover_2500_v9_265_class.tif"
-    output_image = f"./heat_maps/{heat_map_name}.png"
-    airport_tiff = "../Data/airports_temp.tif"
+    # output_image = f"./heat_maps/{option}_visualization_with_airports.png"
+    output_image = "./heat_maps/sunset_birdstrike_visualization.png"
+    airport_tiff = "../Data/birdStrike_temp.tif"    
 
     # Create airport TIFF
     airports_with_coords = create_airport_tiff(csv_file, airport_tiff)
     
     if option == "--Fall":
         overlay_two_tiffs(tiff_file_fall, airport_tiff, output_image, airports_with_coords, False)
-    elif option == "--FallLegend":
+    elif option == "--FallLabel":
         overlay_two_tiffs(tiff_file_fall, airport_tiff, output_image, airports_with_coords, True)
     elif option == "--Spring":
         overlay_two_tiffs(tiff_file_spring, airport_tiff, output_image)
