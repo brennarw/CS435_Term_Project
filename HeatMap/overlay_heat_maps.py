@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import os
 import sys
 import math
+import csv
     
 def create_airport_tiff(csv_path, output_path):
     """
@@ -83,7 +84,7 @@ def create_airport_tiff(csv_path, output_path):
 def get_coord_corners(lat_set, lon_set, transformer):
     directions = [45, 135, 225, 315]
     all_squares = []
-    dist_from_airport = 5 # Distance from airport to corners, add <* math.sqrt(2)> to make this the distance from the airport to the central bound
+    dist_from_airport = 100 # Distance from airport to corners, add <* math.sqrt(2)> to make this the distance from the airport to the central bound
     for lat, lon in zip(lat_set, lon_set):
         square = []
         for direction in directions:
@@ -175,6 +176,8 @@ def overlay_two_tiffs(tiff_file_one, airport_tiff, output_file_path, airports_wi
         plt.figure(figsize=(15, 10))
 
         # Layer 1: First TIFF as background heatmap
+        
+                    #plt.plot(col, row, color='blue', marker = 'o', linewidth=.2)         
         plt.imshow(norm_data1, cmap="hot", interpolation="nearest", alpha=0.5)
         plt.colorbar(label="Fall Data", fraction=0.046, pad=0.04)
 
@@ -195,13 +198,28 @@ def overlay_two_tiffs(tiff_file_one, airport_tiff, output_file_path, airports_wi
             y_coords.append(port[3][1][1])
             y_coords.append(port[3][2][1])
             y_coords.append(port[3][3][1])
-            
+           
         for i in range(0, len(x_coords), 4):
             x_square = x_coords[i:i + 4]
             x_square.append(x_coords[i])
             y_square = y_coords[i:i +4]
             y_square.append(y_coords[i])
-            plt.plot(x_square, y_square, color='blue', linewidth=.2)
+            x_min, x_max = min(x_square), max(x_square)
+            y_min, y_max = min(y_square), max(y_square)
+            print(x_square)
+            print(y_square)
+            bit_sum = 0
+            bit_total = 0
+            for row in range(y_min, y_max):
+                for col in range(x_min, x_max):
+                    if crossProd(x_square[2], y_square[2], x_square[3], y_square[3], col, row) ==\
+                    crossProd(x_square[3], y_square[3], x_square[0], y_square[0], col, row) ==\
+                    crossProd(x_square[0], y_square[0], x_square[1], y_square[1], col, row) ==\
+                    crossProd(x_square[1], y_square[1], x_square[2], y_square[2], col, row):
+                        bit_sum += norm_data1[row][col]
+                        bit_total += 1
+            plt.plot(x_square, y_square, color='green', linewidth=.2)
+            print('bit score ', bit_sum/bit_total, ' num bits: ', bit_total)
 
         plt.title("Combined Visualization with Top 50 Airport Locations")
         if legendBool :
@@ -210,7 +228,11 @@ def overlay_two_tiffs(tiff_file_one, airport_tiff, output_file_path, airports_wi
         else:
             plt.savefig(output_file_path, format="png", dpi=1000, bbox_inches="tight")
             plt.close()
-            
+def crossProd(x_one, y_one, x_two, y_two, x_test, y_test):
+    if ((x_two - x_one) * (y_test - y_one) - (y_two - y_one) * (x_test - x_one)) >= 0:
+        return 1
+    else: 
+        return -1 
 def addLegend(airports_with_coords, output_file_path):
     # Read the CSV file
     # Create the plot for every 4 points so that airports are not connected to one another
