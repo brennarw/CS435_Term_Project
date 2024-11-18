@@ -45,6 +45,13 @@
             <version>3.2.0</version> <!-- Adjust this to the Spark version you're using -->
         </dependency>
 
+        <!-- Apache Spark ML -->
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-mllib_2.12</artifactId>
+            <version>3.5.0</version>
+        </dependency>
+
         <!-- Scala Library -->
         <dependency>
             <groupId>org.scala-lang</groupId>
