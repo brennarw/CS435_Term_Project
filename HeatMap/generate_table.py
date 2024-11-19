@@ -22,7 +22,16 @@ def generate_table():
     
     sorted_df.to_excel("sorted_strike_to_flight_bottom50_ratio.xlsx", index=False)
     
-
+def join_csv():
+    bird_population = pd.read_csv("../Data/bitMapping.csv")
+    bird_flight_ratio = pd.read_csv("../Data/bird_joined_flight_ratio.csv")
+    
+    # join the two datasets on airport_id
+    joined_df = pd.merge(bird_population, bird_flight_ratio[["airport_id", "bird_flight_ratio"]], on="airport_id", how="inner")
+    
+    joined_df.to_csv("../Data/training_data.csv", index=False)
+    
     
 if __name__ == "__main__":
-    generate_table()
+    # generate_table()
+    join_csv()
