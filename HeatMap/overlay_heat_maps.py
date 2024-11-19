@@ -16,7 +16,7 @@ def create_airport_tiff(csv_path, output_path):
     in the continental US, and projecting to match the target TIFF CRS.
     """
     # Read CSV file, skipping the second row (metadata)
-    # data = pd.read_csv(csv_path, skiprows=[1])
+    # data = pd.read_csv(csv_path, skiprows=[0])
     data = pd.read_csv(csv_path)
 
     # Convert latitude and longitude to numeric, coercing errors to NaN
@@ -24,10 +24,12 @@ def create_airport_tiff(csv_path, output_path):
     data["latitude_deg"] = pd.to_numeric(data["latitude_deg"], errors='coerce')
     data = data.dropna(subset=["longitude_deg", "latitude_deg"])
 
+    # Swap with us_data below to create tiff with airport locations
     # Filter for U.S. medium and large airports
     # us_data = data[
     #     (data["type"].isin(['medium_airport', 'large_airport']))
     # ]
+    
     us_data = data
     # Set up projections
     wgs84 = Proj("EPSG:4326")  # WGS84 (lat/lon)
@@ -40,6 +42,7 @@ def create_airport_tiff(csv_path, output_path):
     airport_x = airport_x[valid_indices]
     airport_y = airport_y[valid_indices]
     lon_inverse, lat_inverse = transformer.transform(airport_x, airport_y, direction='inverse')
+    
     # Calculate 4 corners surrounding airport at given distance
     valid_corners = get_coord_corners(lat_inverse, lon_inverse, transformer)
 
@@ -51,9 +54,9 @@ def create_airport_tiff(csv_path, output_path):
 
     # Create empty raster
     raster = np.zeros((height, width), dtype=np.float32)
-    airports_with_coords = []
 
-    # Plot airports into the raster grid and get four corners of bounds
+    # Plot airports into the raster grid with four corners of bounds
+    airports_with_coords = []
     j = 0
     for x, y, corners in zip(airport_x, airport_y, valid_corners):
         col = int((x - xmin) / resolution)
@@ -62,8 +65,9 @@ def create_airport_tiff(csv_path, output_path):
             corners[i] = (int((corners[i][0] - xmin) / resolution), int((ymax - corners[i][1]) / resolution))
         if 0 <= row < height and 0 <= col < width:
             raster[row, col] = 1  # Mark airport locations with 1
-            airports_with_coords.append((data['airportId'].iloc[j], col, row, corners))
+            airports_with_coords.append((data['airport_id'].iloc[j], col, row, corners))
         j += 1
+        
     # Write to TIFF with matching CRS and transform
     transform = from_bounds(xmin, ymin, xmax, ymax, width, height)
     with rasterio.open(
@@ -78,21 +82,139 @@ def create_airport_tiff(csv_path, output_path):
         transform=transform
     ) as dst:
         dst.write(raster, 1)
-        
+    
+    # Return data structure with airport ids, col, row, and corners
     return airports_with_coords
 
+# Given a set of lat and lon values, use GeoPy package to find corners at distance <dist_from_airport>. 
+# Returns sets of airport corners transformed for tiff coordinates (row/col)
 def get_coord_corners(lat_set, lon_set, transformer):
     directions = [45, 135, 225, 315]
     all_squares = []
-    dist_from_airport = 100 # Distance from airport to corners, add <* math.sqrt(2)> to make this the distance from the airport to the central bound
+    dist_from_airport = 5 # Distance from airport to corners, add <* math.sqrt(2)> to make this the distance from the airport to the central bound
     for lat, lon in zip(lat_set, lon_set):
         square = []
         for direction in directions:
             new_point = distance(miles=dist_from_airport).destination((lat, lon), direction)
             square.append(transformer.transform( new_point.longitude, new_point.latitude))
-        all_squares.append(square)
+        all_squares.append(square)    
     return all_squares
 
+# Overlay fall bird coverage heat map with airports and process bitmapping for region around airport (calculated in create_airport_tiff)
+def overlay_two_tiffs(tiff_file_one, airport_tiff, output_file_path, airports_with_coords, labelBool):
+    """
+    Overlay two TIFF files: two existing files and the airport data
+    """
+    # Read all three TIFF files
+    with rasterio.open(tiff_file_one) as src1, \
+         rasterio.open(airport_tiff) as src3:
+
+        data1 = src1.read(1)
+        data3 = src3.read(1)
+
+        # Handle NaN values
+        data1 = np.nan_to_num(data1, nan=0)
+        data3 = np.nan_to_num(data3, nan=0)
+
+        # Normalize each dataset
+        def normalize(data):
+            data_min, data_max = np.min(data), np.max(data)
+            if data_max - data_min != 0:
+                return (data - data_min) / (data_max - data_min)
+            return data
+
+        norm_data1 = normalize(data1)
+
+        # Create visualization
+        plt.figure(figsize=(15, 10))
+
+        # Layer 1: First TIFF as background heatmap       
+        plt.imshow(norm_data1, cmap="hot", interpolation="nearest", alpha=0.5)
+        plt.colorbar(label="Fall Data", fraction=0.046, pad=0.04)
+
+        # Layer 3: Airports with surrounding region
+        # Collect corners of airport area and plot (calculated in create_airport_tiff)
+        x_coords = []
+        y_coords = []
+        for port in airports_with_coords:
+            x_coords.append(port[3][0][0])
+            x_coords.append(port[3][1][0])
+            x_coords.append(port[3][2][0])
+            x_coords.append(port[3][3][0])
+            y_coords.append(port[3][0][1])
+            y_coords.append(port[3][1][1])
+            y_coords.append(port[3][2][1])
+            y_coords.append(port[3][3][1])
+        
+        # Process bit-mapping within specified region around airport
+        csv_list = []
+        index = 0
+        for i in range(0, len(x_coords), 4): # for every four coordinates (each corner bound of the bit-map region)
+            csv_line = ""
+            x_square = x_coords[i:i + 4] # add 4 x corners
+            x_square.append(x_coords[i]) # append duplicate first corner (to create visual square)
+            y_square = y_coords[i:i + 4] # add 4 y corners
+            y_square.append(y_coords[i]) # append duplicate first corner (to create visual square)
+            x_min, x_max = min(x_square), max(x_square)
+            y_min, y_max = min(y_square), max(y_square)
+            bit_sum = 0
+            bit_total = 0
+            # Using x-min/max and y-min/max, loop through the entire encompasing rectangle to account for trapozodial regions
+            for row in range(y_min, y_max + 1):
+                for col in range(x_min, x_max + 1):
+                    # if the current pixel is in the trapazoid: all 4 calls to crossProd return the same value
+                    # Grab the bit value, add it to the bit_sum, and increment the bit total
+                    if crossProd(x_square[2], y_square[2], x_square[3], y_square[3], col, row) ==\
+                    crossProd(x_square[3], y_square[3], x_square[0], y_square[0], col, row) ==\
+                    crossProd(x_square[0], y_square[0], x_square[1], y_square[1], col, row) ==\
+                    crossProd(x_square[1], y_square[1], x_square[2], y_square[2], col, row):
+                        bit_sum += norm_data1[row][col]
+                        bit_total += 1
+            # For each airport, plot all 4 corners (and the duplicate) to create an outline around the airport
+            plt.plot(x_square, y_square, color='blue', linewidth=.2)
+            # Create line for csv output in the format <airportcode, bit average>
+            csv_line = airports_with_coords[index][0] + ',' + str(bit_sum/bit_total)
+            csv_list.append(csv_line)
+            index += 1
+        # Take csv data stored in csv_line and write it to a csv file
+        with open("../Data/bitMapping.csv", mode='w', newline='') as file:
+            writer = csv.writer(file)
+            # Write a header
+            writer.writerow(["airport_id", "bird_population"])
+            for item in csv_list:
+                # Split each string by the comma into name and ratio
+                name, ratio = item.split(",")
+                # Write the name and ratio as a row in the CSV file
+                writer.writerow([name, ratio])
+                
+        plt.title("Bird Clustering with Airport Locations")
+        # If flag was specified to add labels, call addLabel to include airport ids on visualization
+        if labelBool :
+            addLabel(airports_with_coords, output_file_path)
+        # Save the combined visualization without labels
+        else:
+            plt.savefig(output_file_path, format="png", dpi=1000, bbox_inches="tight")
+            plt.close()
+            
+# Uses the cross product to determine if a given point in the encompasing rectancle is within the target trapezoid
+# For all four sides, it the return is the same (all 1 or -1), the point is in the target
+def crossProd(x_one, y_one, x_two, y_two, x_test, y_test):
+    if ((x_two - x_one) * (y_test - y_one) - (y_two - y_one) * (x_test - x_one)) >= 0:
+        return 1
+    else: 
+        return -1 
+    
+# Add Airport Ids outside of airport region in visualization
+def addLabel(airports_with_coords, output_file_path):
+    for airport in airports_with_coords:
+        airport_code, airport_x, airport_y, corners = airport
+            # Add the label near the airport point, with an offset to place the airport id past the upper right corner of the region
+        plt.text(airport_x - 1.0, airport_y - 7.0, airport_code, fontsize=1, ha='left', va='bottom')
+    # Save the plot
+    plt.savefig(output_file_path, format="png", dpi=2000, bbox_inches="tight")
+    plt.close()
+
+# Used for generating overlay of both spring and fall bird coverage heat maps with airport data
 def overlay_three_tiffs(tiff_file_one, tiff_file_two, airport_tiff, output_file_path):
     """
     Overlay three TIFF files: two existing files and the airport data
@@ -145,111 +267,12 @@ def overlay_three_tiffs(tiff_file_one, tiff_file_two, airport_tiff, output_file_
         plt.savefig(output_file_path, format="png", dpi=300, bbox_inches="tight")
         plt.close()
         
-def overlay_two_tiffs(tiff_file_one, airport_tiff, output_file_path, airports_with_coords, legendBool):
-    """
-    Overlay two TIFF files: two existing files and the airport data
-    """
-    # Read all three TIFF files
-    with rasterio.open(tiff_file_one) as src1, \
-         rasterio.open(airport_tiff) as src3:
-
-        data1 = src1.read(1)
-        data3 = src3.read(1)
-        transform = src3.transform 
-
-        # Handle NaN values
-        data1 = np.nan_to_num(data1, nan=0)
-        data3 = np.nan_to_num(data3, nan=0)
-
-        # Normalize each dataset
-        def normalize(data):
-            data_min, data_max = np.min(data), np.max(data)
-            if data_max - data_min != 0:
-                return (data - data_min) / (data_max - data_min)
-            return data
-
-        norm_data1 = normalize(data1)
-
-        # Get coordinates for airport points
-        airport_y, airport_x = np.nonzero(data3)
-        # Create visualization
-        plt.figure(figsize=(15, 10))
-
-        # Layer 1: First TIFF as background heatmap
-        
-                    #plt.plot(col, row, color='blue', marker = 'o', linewidth=.2)         
-        plt.imshow(norm_data1, cmap="hot", interpolation="nearest", alpha=0.5)
-        plt.colorbar(label="Fall Data", fraction=0.046, pad=0.04)
-
-        # Layer 3: Add a faded halo around the airport points
-        # plt.scatter(airport_x, airport_y, color='blue', s=20, alpha=0.2, marker="o")
-        # Generate size of mile radius for plot point
-        # Where 1000 represents the tiff resolution
-        # Layer 4: Airports as bright points
-        # Collect corners of airport area and plot
-        x_coords = []
-        y_coords = []
-        for port in airports_with_coords:
-            x_coords.append(port[3][0][0])
-            x_coords.append(port[3][1][0])
-            x_coords.append(port[3][2][0])
-            x_coords.append(port[3][3][0])
-            y_coords.append(port[3][0][1])
-            y_coords.append(port[3][1][1])
-            y_coords.append(port[3][2][1])
-            y_coords.append(port[3][3][1])
-           
-        for i in range(0, len(x_coords), 4):
-            x_square = x_coords[i:i + 4]
-            x_square.append(x_coords[i])
-            y_square = y_coords[i:i +4]
-            y_square.append(y_coords[i])
-            x_min, x_max = min(x_square), max(x_square)
-            y_min, y_max = min(y_square), max(y_square)
-            print(x_square)
-            print(y_square)
-            bit_sum = 0
-            bit_total = 0
-            for row in range(y_min, y_max):
-                for col in range(x_min, x_max):
-                    if crossProd(x_square[2], y_square[2], x_square[3], y_square[3], col, row) ==\
-                    crossProd(x_square[3], y_square[3], x_square[0], y_square[0], col, row) ==\
-                    crossProd(x_square[0], y_square[0], x_square[1], y_square[1], col, row) ==\
-                    crossProd(x_square[1], y_square[1], x_square[2], y_square[2], col, row):
-                        bit_sum += norm_data1[row][col]
-                        bit_total += 1
-            plt.plot(x_square, y_square, color='green', linewidth=.2)
-            print('bit score ', bit_sum/bit_total, ' num bits: ', bit_total)
-
-        plt.title("Combined Visualization with Top 50 Airport Locations")
-        if legendBool :
-            addLegend(airports_with_coords, output_file_path)
-        # Save the combined visualization
-        else:
-            plt.savefig(output_file_path, format="png", dpi=1000, bbox_inches="tight")
-            plt.close()
-def crossProd(x_one, y_one, x_two, y_two, x_test, y_test):
-    if ((x_two - x_one) * (y_test - y_one) - (y_two - y_one) * (x_test - x_one)) >= 0:
-        return 1
-    else: 
-        return -1 
-def addLegend(airports_with_coords, output_file_path):
-    # Read the CSV file
-    # Create the plot for every 4 points so that airports are not connected to one another
-    for airport in airports_with_coords:
-        airport_code, airport_x, airport_y, corners = airport
-
-            # Add the label near the airport point, with an offset to center the airport name
-        plt.text(airport_x - 1.0, airport_y - 7.0, airport_code, fontsize=1, ha='left', va='bottom')
-    # Save the plot
-    plt.savefig(output_file_path, format="png", dpi=1000, bbox_inches="tight")
-    plt.close()
-    
 def main(option: str):
     # Hardcoded file paths
 # Hardcoded file paths
     # csv_file = "../Data/us-airports.csv"
-    csv_file = "../Data/top50.csv"
+    # csv_file = "../Data/top50.csv"
+    csv_file = "../Data/bird_joined_flight_ratio.csv"
     tiff_file_fall = "../Data/fall_stopover_2500_v9_265_class.tif"
     tiff_file_spring = "../Data/spring_stopover_2500_v9_265_class.tif"
     # output_image = f"./heat_maps/{option}_visualization_with_airports.png"
