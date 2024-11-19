@@ -280,21 +280,6 @@ public final class DataProcessing {
 
         });
 
-        //make a key for the fall data: <"airportID,lat,lon", 1>
-        JavaPairRDD<String, Integer> idFallRDD = fallStrikes.mapToPair(strike -> {
-            String[] attributes = strike.split(",", -1);
-            String airportID = attributes[6].replace("\"", "");
-            double lat = Double.parseDouble(attributes[8].replace("\"", "").trim());
-            double lon = Double.parseDouble(attributes[9].replace("\"", "").trim());
-            String key = airportID + "," + lat + "," + lon;
-            return new Tuple2<>(key, 1);
-        });
-
-        //reduce by key to get the number of strikes per airport
-        JavaRDD<String> fallStrikeCountRDD = idFallRDD.reduceByKey((x,y) -> x + y).map(tuple -> {
-            return tuple._1 + "," + tuple._2;
-        });
-
         //make a key for the sunset data: <"airportID,lat,lon", 1>
         JavaPairRDD<String, Integer> idSunsetRDD = sunsetStrikes.mapToPair(strike -> {
             String[] attributes = strike.split(",", -1);
@@ -313,7 +298,6 @@ public final class DataProcessing {
         // JavaRDD<String> fullHeaderRDD = sc.parallelize(Arrays.asList("INDEX_NR,INCIDENT_DATE,INCIDENT_MONTH,INCIDENT_YEAR,TIME,TIME_OF_DAY,AIRPORT_ID,AIRPORT,AIRPORT_LATITUDE,AIRPORT_LONGITUDE,RUNWAY,STATE,FAAREGION,LOCATION,ENROUTE_STATE,OPID,OPERATOR,REG,FLT,AIRCRAFT,AMA,AMO,EMA,EMO,AC_CLASS,AC_MASS,TYPE_ENG,NUM_ENGS,ENG_1_POS,ENG_2_POS,ENG_3_POS,ENG_4_POS,PHASE_OF_FLIGHT,HEIGHT,SPEED,DISTANCE,SKY,PRECIPITATION,AOS,COST_REPAIRS,COST_OTHER,COST_REPAIRS_INFL_ADJ,COST_OTHER_INFL_ADJ,INGESTED_OTHER,INDICATED_DAMAGE,DAMAGE_LEVEL,STR_RAD,DAM_RAD,STR_WINDSHLD,DAM_WINDSHLD,STR_NOSE,DAM_NOSE,STR_ENG1,DAM_ENG1,ING_ENG1,STR_ENG2,DAM_ENG2,ING_ENG2,STR_ENG3,DAM_ENG3,ING_ENG3,STR_ENG4,DAM_ENG4,ING_ENG4,STR_PROP,DAM_PROP,STR_WING_ROT,DAM_WING_ROT,STR_FUSE,DAM_FUSE,STR_LG,DAM_LG,STR_TAIL,DAM_TAIL,STR_LGHTS,DAM_LGHTS,STR_OTHER,DAM_OTHER,OTHER_SPECIFY,EFFECT,EFFECT_OTHER,BIRD_BAND_NUMBER,SPECIES_ID,SPECIES,REMARKS,REMAINS_COLLECTED,REMAINS_SENT,WARNED,NUM_SEEN,NUM_STRUCK,SIZE,NR_INJURIES,NR_FATALITIES,COMMENTS,REPORTED_NAME,REPORTED_TITLE,SOURCE,PERSON,LUPDATE,TRANSFER"));
         JavaRDD<String> reduceHeaderRDD = sc.parallelize(Arrays.asList("airport_id,latitude_deg,longitude_deg,strike_count"));
         JavaRDD<String> strikeSunsetCountResultRDD = reduceHeaderRDD.union(strikeCountRDD);
-        JavaRDD<String> strikeFallCountResultRDD = reduceHeaderRDD.union(fallStrikeCountRDD);
         strikeSunsetCountResultRDD.coalesce(1).saveAsTextFile(sunsetOutputPath);
         sc.close();
     }
@@ -340,9 +324,9 @@ public final class DataProcessing {
                 .getOrCreate();
 
         //NOTE: have to uncomment whichever processor you want to use!!
-        
         processFlightData(spark, args[0], args[1], args[2]);
-        //processBirdStrikeData(spark, args[0], args[1]); //ARGUMENTS: <bird_strike_data> <sunset_output> <fall_output>
+        // processBirdStrikeData(spark, args[0], args[1]); //ARGUMENTS: <bird_strike_data> <sunset_output> <fall_output>
+
         /*
             in brenna's cluster: 
 
