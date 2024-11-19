@@ -84,7 +84,7 @@ public final class RandomForestBirds {
                 // Create base random forest classifier
                 RandomForestClassifier rf = new RandomForestClassifier()
                     .setLabelCol("label")
-                    .setFeaturesCol("features")
+                    .setFeaturesCol("features") 
                     .setNumTrees(10)
                     .setMaxDepth(3)
                     .setMaxBins(32)
@@ -201,4 +201,7 @@ public final class RandomForestBirds {
             trainRandomForest(spark, args[0], args[1]);
             spark.stop();
         }
+        
+       // spark-submit   --class org.classifiers.RandomForestBirds   --master spark://kinshasa:30216   target/FlightDataProcessing-1.0-SNAPSHOT-jar-with-dependencies.jar   /user/aaron16/input/training_data.csv   /user/aaron16/output/random-forest-model
+
     }
