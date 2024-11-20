@@ -200,5 +200,7 @@ public final class RandomForestBirds {
     
             trainRandomForest(spark, args[0], args[1]);
             spark.stop();
+
+            // spark-submit --class org.classifiers.RandomForestBirds --master spark://bogota.cs.colostate.edu:30282 target/DataProcessing-1.0-SNAPSHOT-jar-with-dependencies.jar /user/brennarw/CS435_Term_Project/training_data.csv /user/brennarw/CS435_Term_Project/random-forest-model
         }
     }
