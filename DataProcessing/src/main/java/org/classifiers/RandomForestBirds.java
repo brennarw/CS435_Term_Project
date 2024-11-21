@@ -39,6 +39,10 @@ import org.apache.spark.ml.tuning.ParamGridBuilder;
 import org.apache.spark.ml.tuning.CrossValidator;
 import org.apache.spark.ml.tuning.CrossValidatorModel;
 import org.apache.spark.ml.param.ParamMap;
+import java.util.Arrays;
+import java.util.List;
+import org.apache.spark.sql.functions;
+import org.apache.spark.ml.feature.PCA;
 
 public final class RandomForestBirds {
 
@@ -69,7 +73,7 @@ public final class RandomForestBirds {
     
                 // Create feature vector
                 VectorAssembler assembler = new VectorAssembler()
-                    .setInputCols(new String[]{"bird_population", "bird_flight_ratio"})
+                    .setInputCols(new String[]{"bird_population"})
                     .setOutputCol("features");
     
                 // Create ternary labels based on median flight ratio
@@ -77,7 +81,7 @@ public final class RandomForestBirds {
                 when(col("bird_flight_ratio").lt(flightRatioStats[0]), 0.0)
                 .when(col("bird_flight_ratio").lt(flightRatioStats[1]), 1.0)
                 .otherwise(2.0));
-    
+
                 processedData = processedData.withColumn("bird_population",
                         col("bird_population").plus(rand().multiply(0.1)));
 
@@ -146,6 +150,11 @@ public final class RandomForestBirds {
                 System.out.println("Precision: " + String.format("%.4f", precision));
                 System.out.println("Recall: " + String.format("%.4f", recall));
                 System.out.println("F1 Score: " + String.format("%.4f", f1Score));
+
+                String modelPath = outputPath + "_trained_model";
+                System.out.println("\nSaving trained model to: " + modelPath);
+                PipelineModel bestModel = (PipelineModel) cvModel.bestModel();
+                bestModel.write().overwrite().save(modelPath);
     
                 // Show prediction distribution
                 System.out.println("\n=== Prediction Distribution ===");
