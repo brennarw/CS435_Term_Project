@@ -173,15 +173,17 @@ public final class DataProcessing {
                                                         .coalesce(1);
         headerRDD.union(flightFreqenciesRDD.map(tuple -> tuple._1 + "," + tuple._2)).saveAsTextFile(flightFrequenciesOutputDir);        
         
-        //FORMAT: JavaRDD<Airport Code, Latiude, Longitude, Ratio (bird strikes/flight count)>
+        //FORMAT: JavaRDD<Airport Code, Latiude, Longitude, birdStrikeCount, flightCount, Ratio (bird strikes/flight count)>
         JavaRDD<String> BirdJoinedFlights = flightFreqenciesRDD
                                                     .mapToPair(tuple -> new Tuple2<>(tuple._1.substring(0, tuple._1.indexOf(",")), new Tuple2<>(tuple._1, tuple._2)))
                                                     .join(
                                                         strikes
                                                         .mapToPair(line -> new Tuple2<>(line.substring(1, line.indexOf(",")), line.substring(line.lastIndexOf(",") + 1))))
                                                     .map(tuple -> {
+                                                        double birdStrikes = Double.parseDouble(tuple._2._2);
+                                                        double flightCount = (double)tuple._2._1._2;
                                                         double ratio = Double.parseDouble(tuple._2._2) / (double)tuple._2._1._2;
-                                                        return tuple._2._1._1 + "," + ratio;
+                                                        return tuple._2._1._1 + "," + birdStrikes + "," + flightCount + "," + ratio;
                                                     });
 
         BirdJoinedFlights.saveAsTextFile(birdStrikePerFlightOutputDir);
