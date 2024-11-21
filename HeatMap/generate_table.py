@@ -24,12 +24,12 @@ def generate_table():
     
 def join_csv():
     bird_population = pd.read_csv("../Data/bitMapping.csv")
-    bird_flight_ratio = pd.read_csv("../Data/bird_joined_flight_ratio.csv")
+    bird_flight_joined = pd.read_csv("../Data/bird_flight_joined.csv")
     
     # join the two datasets on airport_id
-    joined_df = pd.merge(bird_population, bird_flight_ratio[["airport_id", "bird_flight_ratio"]], on="airport_id", how="inner")
+    joined_df = pd.merge(bird_population, bird_flight_joined[["airport_id", "bird_strike_count", "flight_count", "bird_flight_ratio"]], on="airport_id", how="inner")
     
-    joined_df.to_csv("../Data/training_data.csv", index=False)
+    joined_df.to_csv("../Data/new_training_data.csv", index=False)
     
     
 if __name__ == "__main__":
