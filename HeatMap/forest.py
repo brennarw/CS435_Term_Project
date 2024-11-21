@@ -1,51 +1,68 @@
 import pandas as pd
+import random
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
+from scipy.stats import pearsonr
+from scipy.stats import ttest_ind
 
-# Load CSV file
-csv_file = "../training_data.csv"  # Replace with your CSV file path
-data = pd.read_csv(csv_file)
+def BuildAndTestTree(test):
+    # Load CSV file
+    csv_file = "../new_training_data.csv"  
+    data = pd.read_csv(csv_file)
 
-# Specify columns for feature and target
-feature_column = "bird_population"  # Replace with the column name for the feature
-target_column = "bird_flight_ratio"    # Replace with the column name for the target
-identifier_column = "airport_id"   # Replace with the column name for the identifier (e.g., airport name)
+    # Specify columns for feature and target
+    feature_columns = ["bird_population"] # feature
+    target_column = "bird_flight_ratio"    #  target
+    id_column = "airport_id"   # id
 
-# Prepare the data
-X = data[[feature_column]]
-y = data[target_column]
-identifiers = data[identifier_column]  # Keep the identifier column
+    # Prepare the data
+    x = data[feature_columns]
+    y = data[target_column]
+    ids = data[id_column]  # Keep the identifier column
 
-# Split into training and testing sets
-X_train, X_test, y_train, y_test, identifiers_train, identifiers_test = train_test_split(
-    X, y, identifiers, test_size=0.2, random_state=42)
+    # Split into training and testing sets
+    x_train, x_test, y_train, y_test, ids_train, ids_test = train_test_split(
+    x, y, ids, test_size=0.2, random_state=42)
 
-# Create and train the Random Forest model
-model = RandomForestRegressor(random_state=42)
-model.fit(X_train, y_train)
+    # Create and train the Random Forest model
+    model = RandomForestRegressor(n_estimators=100, max_depth=10)
+    model.fit(x_train, y_train)
 
-# Make predictions
-y_pred = model.predict(X_test)
-
-# Print model statistics
-mse = mean_squared_error(y_test, y_pred)
-r2 = r2_score(y_test, y_pred)
-
-print(f"Mean Squared Error: {mse:.10f}")
-print(f"R-squared: {r2:.2f}")
-
-# Debugging: Print actual vs predicted values
-print("\nActual vs. Predicted values:")
-print("Actual: ", y_test.values[:10])  # Print the first 10 actual values
-print("Predicted: ", y_pred[:10])  # Print the first 10 predicted values
-
-# Create a DataFrame to compare actual vs predicted values with the airport name preserved
-comparison = pd.DataFrame({
-    "Airport": identifiers_test,  # Add the airport column for identification
+    # Make predictions
+    y_pred = model.predict(x_test)
+    # Print model statistics
+    mse = mean_squared_error(y_test, y_pred)
+    r2 = r2_score(y_test, y_pred)
+    corr, p_val = pearsonr(x[feature_columns].values.flatten(), y)
+    #p_val = ttest_ind(x[feature_columns].values.flatten(), y).pvalue
+    print(f"P-Value: {p_val:.30f}")
+    print(f"Pearson-Value: {corr:.20f}")
+    print(f"Mean Squared Error: {mse:.10f}")
+    print(f"R-squared: {r2:.2f}")
+    # Create a DataFrame to compare actual vs predicted values with the airport name preserved
+    comparison = pd.DataFrame({
+    "Airport": ids_test,  
     "Actual": y_test,
     "Predicted": y_pred
-}).reset_index(drop=True)
+    }).reset_index(drop=True)
 
-print("\nActual vs. Predicted Values with Airport:")
-print(comparison)
+    print("\nActual vs. Predicted Values with Airport:")
+    print(comparison)
+    test_pred = model.predict(test)
+    comparison = pd.DataFrame({
+    "Population": test,  
+    "Predicted": test_pred
+    }).reset_index(drop=True)
+    print("\nRandom Populations and Predicted Values:")
+    print(comparison)
+    
+if __name__ == "__main__":
+    test_population = []
+    sub_val = []
+    for i in range(0,20):
+        sub_val.append(random.random())
+        test_population.append(sub_val)
+        sub_val = []
+    BuildAndTestTree(test_population)
